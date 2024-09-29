@@ -1,46 +1,96 @@
+import { View, Text, StyleSheet } from "react-native";
 import Animated, {
-  useSharedValue,
-  withTiming,
+  useAnimatedSensor,
+  SensorType,
   useAnimatedStyle,
-  Easing,
+  withSpring,
+  useSharedValue,
+  runOnJS,
 } from "react-native-reanimated";
-import { View, Button } from "react-native";
+import { useEffect } from "react";
 
-export default function AnimatedStyleUpdateExample(props) {
-  const randomWidth = useSharedValue(10);
+export default function App() {
+  const rotation = useAnimatedSensor(SensorType.ROTATION, {
+    interval: 20,
+  });
 
-  const config = {
-    duration: 500,
-    easing: Easing.bezier(0.5, 0.01, 0, 1),
-  };
+  const positionX = useSharedValue(0);
+  const positionY = useSharedValue(0);
 
-  const style = useAnimatedStyle(() => {
+  const avatarStyle = useAnimatedStyle(() => {
+    const { pitch, roll } = rotation.sensor.value;
+    
+    // Calculamos el nuevo desplazamiento
+    const newX = positionX.value + roll * 2;
+    const newY = positionY.value + pitch * 2;
+    
+    // Actualizamos los valores compartidos
+    positionX.value = newX;
+    positionY.value = newY;
+
     return {
-      width: withTiming(randomWidth.value, config),
+      transform: [
+        { translateX: withSpring(newX, { damping: 200 }) },
+        { translateY: withSpring(newY, { damping: 200 }) },
+      ],
     };
   });
 
+  const backgroundStyle = useAnimatedStyle(() => {
+    const { pitch, roll } = rotation.sensor.value;
+    return {
+      transform: [
+        { translateX: withSpring(-roll * 25, { damping: 200 }) },
+        { translateY: withSpring(-pitch * 25, { damping: 200 }) },
+      ],
+    };
+  });
+
+  // Efecto para restablecer la posición cuando se desmonta el componente
+  useEffect(() => {
+    return () => {
+      positionX.value = 0;
+      positionY.value = 0;
+    };
+  }, []);
+
   return (
-    <View
-      style={{
-        flex: 1,
-        alignItems: "center",
-        justifyContent: "center",
-        flexDirection: "column",
-      }}
-    >
-      <Animated.View
-        style={[
-          { width: 100, height: 80, backgroundColor: "black", margin: 30 },
-          style,
-        ]}
+    <View style={styles.container}>
+      <Animated.Image
+        style={[styles.background, backgroundStyle]}
+        source={require("./assets/background.jpg")}
       />
-      <Button
-        title="toggle"
-        onPress={() => {
-          randomWidth.value = Math.random() * 350;
-        }}
+      <Animated.Image
+        style={[styles.avatar, avatarStyle]}
+        source={require("./assets/avatar.jpg")}
       />
+      <Text style={styles.text}>Inclina la pantalla</Text>
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  background: {
+    width: '110%',
+    height: '110%',
+    resizeMode: 'cover',
+  },
+  avatar: {
+    position: "absolute",
+    width: 100,
+    height: 100,
+  },
+  text: {
+    fontWeight: "bold",
+    fontSize: 25,
+    textAlign: "center",
+    color: "black",
+    position: "absolute",
+    top: 100,
+  },
+});

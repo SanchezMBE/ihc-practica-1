@@ -1,15 +1,26 @@
-import { View, Text, StyleSheet } from "react-native";
+import { View, Text, StyleSheet, Dimensions } from "react-native";
 import Animated, {
   useAnimatedSensor,
   SensorType,
   useAnimatedStyle,
   withSpring,
   useSharedValue,
-  runOnJS,
 } from "react-native-reanimated";
 import { useEffect } from "react";
+import * as ScreenOrientation from 'expo-screen-orientation';
+
+const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
+const AVATAR_SIZE = 100;
 
 export default function App() {
+  // Bloquear orientación del dispositivo
+  useEffect(() => {
+    async function setOrientation() {
+      await ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT);
+    }
+    setOrientation();
+  }, []);
+
   const rotation = useAnimatedSensor(SensorType.ROTATION, {
     interval: 20,
   });
@@ -21,8 +32,12 @@ export default function App() {
     const { pitch, roll } = rotation.sensor.value;
     
     // Calculamos el nuevo desplazamiento
-    const newX = positionX.value + roll * 2;
-    const newY = positionY.value + pitch * 2;
+    let newX = positionX.value + Number(roll.toFixed(1)) * 6;
+    let newY = positionY.value + Number(pitch.toFixed(1)) * 6;
+    
+    // Limitamos el desplazamiento dentro de los límites de la pantalla
+    newX = Math.max(-(screenWidth - AVATAR_SIZE) / 2 + 10, Math.min(newX, (screenWidth - AVATAR_SIZE) / 2 - 10));
+    newY = Math.max(-(screenHeight - AVATAR_SIZE) / 2, Math.min(newY, (screenHeight - AVATAR_SIZE) / 2));
     
     // Actualizamos los valores compartidos
     positionX.value = newX;
@@ -76,14 +91,14 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   background: {
-    width: '110%',
-    height: '110%',
+    width: '140%',
+    height: '140%',
     resizeMode: 'cover',
   },
   avatar: {
     position: "absolute",
-    width: 100,
-    height: 100,
+    width: AVATAR_SIZE,
+    height: AVATAR_SIZE,
   },
   text: {
     fontWeight: "bold",
